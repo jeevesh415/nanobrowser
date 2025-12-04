@@ -330,12 +330,12 @@ export default class Page {
         }
       });
 
-      // Take the screenshot using JPEG format with 80% quality
+      // Take the screenshot using JPEG format with 95% quality for advanced vision analysis
       const screenshot = await this._puppeteerPage.screenshot({
         fullPage: fullPage,
         encoding: 'base64',
         type: 'jpeg',
-        quality: 80, // Good balance between quality and file size
+        quality: 95, // High quality for better OCR and visual analysis
       });
 
       // Clean up the style element
