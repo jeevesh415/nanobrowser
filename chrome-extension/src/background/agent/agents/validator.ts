@@ -17,6 +17,7 @@ const logger = createLogger('ValidatorAgent');
 
 // Define Zod schema for validator output
 export const validatorOutputSchema = z.object({
+  thinking_process: z.string().optional().describe('Deep thinking process for validation and research verification'),
   is_valid: z.union([
     z.boolean(),
     z.string().transform(val => {

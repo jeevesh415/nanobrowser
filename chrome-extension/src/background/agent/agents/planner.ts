@@ -17,6 +17,7 @@ const logger = createLogger('PlannerAgent');
 
 // Define Zod schema for planner output
 export const plannerOutputSchema = z.object({
+  thinking_process: z.string().optional().describe('Deep thinking process and research planning'),
   observation: z.string(),
   challenges: z.string(),
   done: z.union([
