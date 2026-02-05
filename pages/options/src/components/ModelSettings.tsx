@@ -56,6 +56,12 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
     [AgentNameEnum.Planner]: undefined,
     [AgentNameEnum.Validator]: undefined,
   });
+  // State for context window size for Ollama models
+  const [ollamaNumCtx, setOllamaNumCtx] = useState<Record<AgentNameEnum, number | undefined>>({
+    [AgentNameEnum.Navigator]: undefined,
+    [AgentNameEnum.Planner]: undefined,
+    [AgentNameEnum.Validator]: undefined,
+  });
   const [newModelInputs, setNewModelInputs] = useState<Record<string, string>>({});
   const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
   const newlyAddedProviderRef = useRef<string | null>(null);
@@ -123,6 +129,13 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
               setReasoningEffort(prev => ({
                 ...prev,
                 [agent]: config.reasoningEffort as 'low' | 'medium' | 'high',
+              }));
+            }
+            // Load numCtx if available
+            if (config.numCtx) {
+              setOllamaNumCtx(prev => ({
+                ...prev,
+                [agent]: config.numCtx,
               }));
             }
           }
@@ -577,11 +590,26 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
           }));
         }
 
+        const isOllama = providers[provider]?.type === ProviderTypeEnum.Ollama;
+        if (isOllama) {
+          // Default to 64000 if not set
+          setOllamaNumCtx(prev => ({
+            ...prev,
+            [agentName]: prev[agentName] || 64000,
+          }));
+        } else {
+          setOllamaNumCtx(prev => ({
+            ...prev,
+            [agentName]: undefined,
+          }));
+        }
+
         await agentModelStore.setAgentModel(agentName, {
           provider,
           modelName: model,
           parameters: newParameters,
           reasoningEffort: isOpenAIOModel(model) ? reasoningEffort[agentName] || 'medium' : undefined,
+          numCtx: isOllama ? ollamaNumCtx[agentName] || 64000 : undefined,
         });
       } else {
         // Reset storage if no model is selected
@@ -614,6 +642,32 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
         }
       } catch (error) {
         console.error('Error saving reasoning effort:', error);
+      }
+    }
+  };
+
+  const handleNumCtxChange = async (agentName: AgentNameEnum, value: number) => {
+    setOllamaNumCtx(prev => ({
+      ...prev,
+      [agentName]: value,
+    }));
+
+    // Only update if we have a selected model
+    if (selectedModels[agentName]) {
+      try {
+        const provider = getProviderForModel(selectedModels[agentName]);
+        const isOllama = providers[provider]?.type === ProviderTypeEnum.Ollama;
+
+        if (provider && isOllama) {
+          await agentModelStore.setAgentModel(agentName, {
+            provider,
+            modelName: selectedModels[agentName],
+            parameters: modelParameters[agentName],
+            numCtx: value,
+          });
+        }
+      } catch (error) {
+        console.error('Error saving numCtx:', error);
       }
     }
   };
@@ -814,7 +868,12 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
         </div>
 
         {/* Reasoning Effort Selector (only for O-series models) */}
-        {selectedModels[agentName] && isOpenAIOModel(selectedModels[agentName]) && (
+        {selectedModels[agentName] &&
+          (() => {
+            const parts = selectedModels[agentName].split('>');
+            const modelName = parts.length > 1 ? parts[1] : parts[0];
+            return isOpenAIOModel(modelName);
+          })() && (
           <div className="flex items-center">
             <label
               htmlFor={`${agentName}-reasoning-effort`}
@@ -834,6 +893,40 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
             </div>
           </div>
         )}
+
+        {/* Context Window Size (only for Ollama models) */}
+        {(() => {
+          const [provider] = (selectedModels[agentName] || '').split('>');
+          const isOllama = providers[provider]?.type === ProviderTypeEnum.Ollama;
+
+          if (!isOllama) return null;
+
+          return (
+            <div className="flex items-center">
+              <label
+                htmlFor={`${agentName}-num-ctx`}
+                className={`w-24 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Context
+              </label>
+              <div className="flex flex-1 items-center space-x-2">
+                <input
+                  id={`${agentName}-num-ctx`}
+                  type="number"
+                  min="2048"
+                  step="1024"
+                  value={ollamaNumCtx[agentName] ?? 64000}
+                  onChange={e => {
+                    const val = Number.parseInt(e.target.value, 10);
+                    if (!Number.isNaN(val)) {
+                      handleNumCtxChange(agentName, val);
+                    }
+                  }}
+                  className={`flex-1 rounded-md border text-sm ${isDarkMode ? 'border-slate-600 bg-slate-700 text-gray-200' : 'border-gray-300 bg-white text-gray-700'} px-3 py-2`}
+                />
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
