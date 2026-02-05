@@ -127,6 +127,46 @@ export default class BrowserContext {
   }
 
   /**
+   * Detects if a new tab is created during the execution of an action.
+   * @param action The action to execute.
+   * @returns The ID of the new tab if created, or null.
+   */
+  public async detectNewTab(action: () => Promise<void>): Promise<number | null> {
+    let newTabId: number | null = null;
+    let windowId: number | undefined;
+
+    // Try to get the current window ID to filter events
+    try {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      windowId = activeTab?.windowId;
+    } catch (error) {
+      logger.warn('Failed to get current window ID', error);
+    }
+
+    const onCreatedListener = (tab: chrome.tabs.Tab) => {
+      // Filter by window ID if available
+      if (windowId !== undefined && tab.windowId !== windowId) {
+        return;
+      }
+      if (tab.id) {
+        newTabId = tab.id;
+      }
+    };
+
+    chrome.tabs.onCreated.addListener(onCreatedListener);
+
+    try {
+      await action();
+      // Wait a short time for any async tab creation to register
+      await new Promise(resolve => setTimeout(resolve, 200));
+    } finally {
+      chrome.tabs.onCreated.removeListener(onCreatedListener);
+    }
+
+    return newTabId;
+  }
+
+  /**
    * Get all tab IDs from the browser and the current window.
    * @returns A set of tab IDs.
    */
