@@ -154,12 +154,14 @@ export function createChatHistoryStorage(): ChatHistoryStorage {
     },
 
     deleteSession: async (sessionId: string): Promise<void> => {
-      // Remove session from metadata
-      await chatSessionsMetaStorage.set(prevSessions => prevSessions.filter(session => session.id !== sessionId));
-
-      // Remove the session's messages
       const messagesStorage = getSessionMessagesStorage(sessionId);
-      await messagesStorage.set([]);
+
+      await Promise.all([
+        // Remove session from metadata
+        chatSessionsMetaStorage.set(prevSessions => prevSessions.filter(session => session.id !== sessionId)),
+        // Remove the session's messages
+        messagesStorage.set([]),
+      ]);
     },
 
     addMessage: async (sessionId: string, message: Message): Promise<ChatMessage> => {
