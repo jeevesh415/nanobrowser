@@ -30,9 +30,21 @@ export async function findHistoryElementInTree(
 ): Promise<DOMElementNode | null> {
   const hashedDomHistoryElement = await hashDomHistoryElement(domHistoryElement);
 
-  const processNode = async (node: DOMElementNode): Promise<DOMElementNode | null> => {
+  // Pre-calculate path for the root of the search
+  const rootPath = _getParentBranchPath(tree);
+  // Join the path once
+  const rootPathString = rootPath.length > 0 ? rootPath.join('/') : '';
+
+  const processNode = async (node: DOMElementNode, currentPathString: string): Promise<DOMElementNode | null> => {
     if (node.highlightIndex != null) {
-      const hashedNode = await hashDomElement(node);
+      const [branchPathHash, attributesHash, xpathHash] = await Promise.all([
+        currentPathString === '' ? Promise.resolve('') : _createSHA256Hash(currentPathString),
+        _attributesHash(node.attributes),
+        _xpathHash(node.xpath ?? ''),
+      ]);
+
+      const hashedNode = new HashedDomElement(branchPathHash, attributesHash, xpathHash);
+
       if (
         hashedNode.branchPathHash === hashedDomHistoryElement.branchPathHash &&
         hashedNode.attributesHash === hashedDomHistoryElement.attributesHash &&
@@ -43,7 +55,9 @@ export async function findHistoryElementInTree(
     }
     for (const child of node.children) {
       if (child instanceof DOMElementNode) {
-        const result = await processNode(child);
+        const childTagName = child.tagName ?? '';
+        const childPathString = currentPathString === '' ? childTagName : `${currentPathString}/${childTagName}`;
+        const result = await processNode(child, childPathString);
         if (result !== null) {
           return result;
         }
@@ -52,7 +66,7 @@ export async function findHistoryElementInTree(
     return null;
   };
 
-  return processNode(tree);
+  return processNode(tree, rootPathString);
 }
 
 /**
