@@ -92,15 +92,15 @@ export const closeTabActionSchema: ActionSchema = {
   }),
 };
 
-// Content Actions, not used currently
-// export const extractContentActionSchema: ActionSchema = {
-//   name: 'extract_content',
-//   description:
-//     'Extract page content to retrieve specific information from the page, e.g. all company names, a specific description, all information about, links with companies in structured format or simply links',
-//   schema: z.object({
-//     goal: z.string(),
-//   }),
-// };
+// Content Actions
+export const extractContentActionSchema: ActionSchema = {
+  name: 'extract_content',
+  description:
+    'Extract page content to retrieve specific information from the page, e.g. all company names, a specific description, all information about, links with companies in structured format or simply links',
+  schema: z.object({
+    goal: z.string(),
+  }),
+};
 
 // Cache Actions
 export const cacheContentActionSchema: ActionSchema = {

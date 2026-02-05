@@ -50,7 +50,7 @@ async function injectBuildDomTree(tabId: number) {
 
     await chrome.scripting.executeScript({
       target: { tabId },
-      files: ['buildDomTree.js'],
+      files: ['buildDomTree.js', 'readability.js'],
     });
     console.log('Scripts successfully injected');
   } catch (err) {
