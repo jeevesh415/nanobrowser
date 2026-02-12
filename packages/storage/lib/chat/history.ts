@@ -22,10 +22,10 @@ const chatSessionsMetaStorage = createStorage<ChatSessionMetadata[]>(CHAT_SESSIO
 const getSessionMessagesKey = (sessionId: string) => `chat_messages_${sessionId}`;
 
 // Helper function to create storage for a specific session's messages
-const getSessionMessagesStorage = (sessionId: string) => {
+const getSessionMessagesStorage = (sessionId: string, config?: { liveUpdate?: boolean }) => {
   return createStorage<ChatMessage[]>(getSessionMessagesKey(sessionId), [], {
     storageEnum: StorageEnum.Local,
-    liveUpdate: true,
+    liveUpdate: config?.liveUpdate ?? true,
   });
 };
 
@@ -69,10 +69,11 @@ export function createChatHistoryStorage(): ChatHistoryStorage {
 
     clearAllSessions: async (): Promise<void> => {
       const sessionsMeta = await chatSessionsMetaStorage.get();
-      for (const sessionMeta of sessionsMeta) {
-        const messagesStorage = getSessionMessagesStorage(sessionMeta.id);
-        await messagesStorage.set([]);
-      }
+      const clearPromises = sessionsMeta.map(sessionMeta => {
+        const messagesStorage = getSessionMessagesStorage(sessionMeta.id, { liveUpdate: false });
+        return messagesStorage.set([]);
+      });
+      await Promise.all(clearPromises);
       await chatSessionsMetaStorage.set([]);
     },
 
