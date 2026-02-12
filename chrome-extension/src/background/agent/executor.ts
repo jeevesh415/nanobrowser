@@ -285,8 +285,8 @@ export class Executor {
       return true;
     }
 
-    while (this.context.paused) {
-      await new Promise(resolve => setTimeout(resolve, 200));
+    if (this.context.paused) {
+      await this.context.waitForResume();
       if (this.context.stopped) {
         return true;
       }
