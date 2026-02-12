@@ -15,6 +15,8 @@ import {
   getClickableElements as _getClickableElements,
   removeHighlights as _removeHighlights,
   getScrollInfo as _getScrollInfo,
+  getReadabilityContent as _getReadabilityContent,
+  type ReadabilityResult,
 } from './dom/service';
 import { DOMElementNode, type DOMState } from './dom/views';
 import { type BrowserContextConfig, DEFAULT_BROWSER_CONTEXT_CONFIG, type PageState, URLNotAllowedError } from './views';
@@ -196,6 +198,13 @@ export default class Page {
       return [0, 0];
     }
     return _getScrollInfo(this._tabId);
+  }
+
+  async getReadabilityContent(): Promise<ReadabilityResult> {
+    if (!this._validWebPage) {
+      throw new Error('Page is not valid');
+    }
+    return _getReadabilityContent(this._tabId);
   }
 
   async getContent(): Promise<string> {

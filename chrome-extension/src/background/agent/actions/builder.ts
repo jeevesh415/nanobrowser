@@ -18,12 +18,14 @@ import {
   getDropdownOptionsActionSchema,
   closeTabActionSchema,
   waitActionSchema,
+  extractContentActionSchema,
 } from './schemas';
 import { z } from 'zod';
 import { createLogger } from '@src/background/log';
 import { ExecutionState, Actors } from '../event/types';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { wrapUntrustedContent } from '../messages/utils';
+import { PromptTemplate } from '@langchain/core/prompts';
 
 const logger = createLogger('Action');
 
@@ -327,36 +329,59 @@ export class ActionBuilder {
     actions.push(closeTab);
 
     // Content Actions
-    // TODO: this is not used currently, need to improve on input size
-    // const extractContent = new Action(async (input: z.infer<typeof extractContentActionSchema.schema>) => {
-    //   const goal = input.goal;
-    //   const intent = input.intent || `Extracting content from page`;
-    //   this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_START, intent);
-    //   const page = await this.context.browserContext.getCurrentPage();
-    //   const content = await page.getReadabilityContent();
-    //   const promptTemplate = PromptTemplate.fromTemplate(
-    //     'Your task is to extract the content of the page. You will be given a page and a goal and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format. Extraction goal: {goal}, Page: {page}',
-    //   );
-    //   const prompt = await promptTemplate.invoke({ goal, page: content.content });
+    const extractContent = new Action(
+      async (input: z.infer<typeof extractContentActionSchema.schema>) => {
+        const goal = input.goal;
+        const intent = input.intent || `Extracting content from page`;
+        this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_START, intent);
 
-    //   try {
-    //     const output = await this.extractorLLM.invoke(prompt);
-    //     const msg = `📄  Extracted from page\n: ${output.content}\n`;
-    //     return new ActionResult({
-    //       extractedContent: msg,
-    //       includeInMemory: true,
-    //     });
-    //   } catch (error) {
-    //     logger.error(`Error extracting content: ${error instanceof Error ? error.message : String(error)}`);
-    //     const msg =
-    //       'Failed to extract content from page, you need to extract content from the current state of the page and store it in the memory. Then scroll down if you still need more information.';
-    //     return new ActionResult({
-    //       extractedContent: msg,
-    //       includeInMemory: true,
-    //     });
-    //   }
-    // }, extractContentActionSchema);
-    // actions.push(extractContent);
+        try {
+          const page = await this.context.browserContext.getCurrentPage();
+          const content = await page.getReadabilityContent();
+
+          // Use markdown if available, otherwise fallback to textContent
+          // We truncate to 20k characters to avoid context window limits
+          let pageContent = content.markdown || content.textContent || content.content;
+          const MAX_CONTENT_LENGTH = 20000;
+          if (pageContent.length > MAX_CONTENT_LENGTH) {
+            pageContent = pageContent.substring(0, MAX_CONTENT_LENGTH) + '\n...(truncated)';
+          }
+
+          const promptTemplate = PromptTemplate.fromTemplate(
+            'Your task is to extract the content of the page. You will be given a page and a goal and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format. Extraction goal: {goal}, Page Content: {content}',
+          );
+          const prompt = await promptTemplate.invoke({ goal, content: pageContent });
+
+          const output = await this.extractorLLM.invoke(prompt);
+          let extractedText = typeof output.content === 'string' ? output.content : JSON.stringify(output.content);
+
+          // Try to pretty print JSON if applicable
+          try {
+            const jsonObj = JSON.parse(extractedText);
+            extractedText = JSON.stringify(jsonObj, null, 2);
+          } catch (e) {
+            // ignore
+          }
+
+          const msg = `📄  Extracted from page\n: ${extractedText}\n`;
+          this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_OK, 'Successfully extracted content');
+          return new ActionResult({
+            extractedContent: msg,
+            includeInMemory: true,
+          });
+        } catch (error) {
+          logger.error(`Error extracting content: ${error instanceof Error ? error.message : String(error)}`);
+          const msg = `Failed to extract content: ${error instanceof Error ? error.message : String(error)}`;
+          this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_FAIL, msg);
+          return new ActionResult({
+            error: msg,
+            includeInMemory: true,
+          });
+        }
+      },
+      extractContentActionSchema,
+    );
+    actions.push(extractContent);
 
     // cache content for future use
     const cacheContent = new Action(async (input: z.infer<typeof cacheContentActionSchema.schema>) => {
