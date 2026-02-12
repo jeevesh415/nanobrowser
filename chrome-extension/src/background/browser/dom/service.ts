@@ -16,6 +16,7 @@ export interface ReadabilityResult {
   siteName: string;
   lang: string;
   publishedTime: string;
+  markdown?: string;
 }
 
 declare global {
