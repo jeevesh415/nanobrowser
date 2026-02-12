@@ -153,5 +153,10 @@ export function createStorage<D = string>(key: string, fallback: D, config?: Sto
     set,
     getSnapshot,
     subscribe,
+    dispose: () => {
+      if (liveUpdate) {
+        chrome?.storage[storageEnum].onChanged.removeListener(_updateFromStorageOnChanged);
+      }
+    },
   };
 }
