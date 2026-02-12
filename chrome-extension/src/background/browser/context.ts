@@ -136,6 +136,40 @@ export default class BrowserContext {
   }
 
   /**
+   * Detects if a new tab is created during the execution of an action.
+   * @param action - The action to execute.
+   * @param timeoutMs - The maximum time to wait for a new tab to be created after the action.
+   * @returns The ID of the new tab if created, null otherwise.
+   */
+  public async detectNewTab(action: () => Promise<void>, timeoutMs = 200): Promise<number | null> {
+    let newTabId: number | null = null;
+    let captured = false;
+
+    const onCreatedHandler = (tab: chrome.tabs.Tab) => {
+      // Check if we already captured a tab to avoid overwriting with subsequent tabs
+      if (tab.id && !captured) {
+        newTabId = tab.id;
+        captured = true;
+      }
+    };
+
+    chrome.tabs.onCreated.addListener(onCreatedHandler);
+
+    try {
+      await action();
+      // Wait for a short period to allow for event propagation
+      // If we haven't captured a tab yet, give it a bit of time
+      if (!captured) {
+        await new Promise(resolve => setTimeout(resolve, timeoutMs));
+      }
+    } finally {
+      chrome.tabs.onCreated.removeListener(onCreatedHandler);
+    }
+
+    return newTabId;
+  }
+
+  /**
    * Wait for tab events to occur after a tab is created or updated.
    * @param tabId - The ID of the tab to wait for events on.
    * @param options - An object containing options for the wait.
