@@ -7,6 +7,7 @@ export type BaseStorage<D> = {
   set: (value: ValueOrUpdate<D>) => Promise<void>;
   getSnapshot: () => D | null;
   subscribe: (listener: () => void) => () => void;
+  dispose: () => void;
 };
 
 export type StorageConfig<D = string> = {
