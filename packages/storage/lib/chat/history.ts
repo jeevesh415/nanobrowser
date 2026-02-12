@@ -207,22 +207,24 @@ export function createChatHistoryStorage(): ChatHistoryStorage {
 
       if (!messageToDelete) return; // Message not found
 
-      // Remove the message directly from the messages storage
-      await messagesStorage.set(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+      await Promise.all([
+        // Remove the message directly from the messages storage
+        messagesStorage.set(prevMessages => prevMessages.filter(msg => msg.id !== messageId)),
 
-      // Update the session's metadata (updatedAt timestamp and messageCount)
-      await chatSessionsMetaStorage.set(prevSessions => {
-        return prevSessions.map(session => {
-          if (session.id === sessionId) {
-            return {
-              ...session,
-              updatedAt: getCurrentTimestamp(),
-              messageCount: Math.max(0, session.messageCount - 1),
-            };
-          }
-          return session;
-        });
-      });
+        // Update the session's metadata (updatedAt timestamp and messageCount)
+        chatSessionsMetaStorage.set(prevSessions => {
+          return prevSessions.map(session => {
+            if (session.id === sessionId) {
+              return {
+                ...session,
+                updatedAt: getCurrentTimestamp(),
+                messageCount: Math.max(0, session.messageCount - 1),
+              };
+            }
+            return session;
+          });
+        }),
+      ]);
     },
 
     storeAgentStepHistory: async (sessionId: string, task: string, history: string): Promise<void> => {
