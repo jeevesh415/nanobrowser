@@ -68,6 +68,7 @@ export class AgentContext {
   actionResults: ActionResult[];
   stateMessageAdded: boolean;
   history: AgentStepHistory;
+  private resumeResolvers: (() => void)[] = [];
 
   constructor(
     taskId: string,
@@ -110,11 +111,22 @@ export class AgentContext {
 
   async resume() {
     this.paused = false;
+    this.resumeResolvers.forEach(resolve => resolve());
+    this.resumeResolvers = [];
   }
 
   async stop() {
     this.stopped = true;
+    this.resumeResolvers.forEach(resolve => resolve());
+    this.resumeResolvers = [];
     setTimeout(() => this.controller.abort(), 300);
+  }
+
+  async waitForResume(): Promise<void> {
+    if (!this.paused) return;
+    return new Promise(resolve => {
+      this.resumeResolvers.push(resolve);
+    });
   }
 }
 
