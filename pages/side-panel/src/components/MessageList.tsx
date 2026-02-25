@@ -2,33 +2,13 @@ import type { Message } from '@extension/storage';
 import { ACTOR_PROFILES } from '../types/message';
 import { memo } from 'react';
 
-interface MessageListProps {
-  messages: Message[];
-  isDarkMode?: boolean;
-}
-
-export default memo(function MessageList({ messages, isDarkMode = false }: MessageListProps) {
-  return (
-    <div className="max-w-full space-y-4">
-      {messages.map((message, index) => (
-        <MessageBlock
-          key={`${message.actor}-${message.timestamp}-${index}`}
-          message={message}
-          isSameActor={index > 0 ? messages[index - 1].actor === message.actor : false}
-          isDarkMode={isDarkMode}
-        />
-      ))}
-    </div>
-  );
-});
-
 interface MessageBlockProps {
   message: Message;
   isSameActor: boolean;
   isDarkMode?: boolean;
 }
 
-function MessageBlock({ message, isSameActor, isDarkMode = false }: MessageBlockProps) {
+const MessageBlock = memo(function MessageBlock({ message, isSameActor, isDarkMode = false }: MessageBlockProps) {
   if (!message.actor) {
     console.error('No actor found');
     return <div />;
@@ -78,7 +58,27 @@ function MessageBlock({ message, isSameActor, isDarkMode = false }: MessageBlock
       </div>
     </div>
   );
+});
+
+interface MessageListProps {
+  messages: Message[];
+  isDarkMode?: boolean;
 }
+
+export default memo(function MessageList({ messages, isDarkMode = false }: MessageListProps) {
+  return (
+    <div className="max-w-full space-y-4">
+      {messages.map((message, index) => (
+        <MessageBlock
+          key={`${message.actor}-${message.timestamp}-${index}`}
+          message={message}
+          isSameActor={index > 0 ? messages[index - 1].actor === message.actor : false}
+          isDarkMode={isDarkMode}
+        />
+      ))}
+    </div>
+  );
+});
 
 /**
  * Formats a timestamp (in milliseconds) to a readable time string
