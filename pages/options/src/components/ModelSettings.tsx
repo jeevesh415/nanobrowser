@@ -44,7 +44,9 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
     [AgentNameEnum.Planner]: '',
     [AgentNameEnum.Validator]: '',
   });
-  const [modelParameters, setModelParameters] = useState<Record<AgentNameEnum, { temperature: number; topP: number }>>({
+  const [modelParameters, setModelParameters] = useState<
+    Record<AgentNameEnum, { temperature: number; topP: number; numCtx?: number }>
+  >({
     [AgentNameEnum.Navigator]: { temperature: 0, topP: 0 },
     [AgentNameEnum.Planner]: { temperature: 0, topP: 0 },
     [AgentNameEnum.Validator]: { temperature: 0, topP: 0 },
@@ -113,8 +115,9 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
               setModelParameters(prev => ({
                 ...prev,
                 [agent]: {
-                  temperature: config.parameters?.temperature ?? prev[agent].temperature,
-                  topP: config.parameters?.topP ?? prev[agent].topP,
+                  temperature: (config.parameters?.temperature as number) ?? prev[agent].temperature,
+                  topP: (config.parameters?.topP as number) ?? prev[agent].topP,
+                  numCtx: config.parameters?.numCtx as number | undefined,
                 },
               }));
             }
@@ -618,7 +621,11 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
     }
   };
 
-  const handleParameterChange = async (agentName: AgentNameEnum, paramName: 'temperature' | 'topP', value: number) => {
+  const handleParameterChange = async (
+    agentName: AgentNameEnum,
+    paramName: 'temperature' | 'topP' | 'numCtx',
+    value: number,
+  ) => {
     const newParameters = {
       ...modelParameters[agentName],
       [paramName]: value,
@@ -831,6 +838,33 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
                 <option value="medium">Medium (Balanced)</option>
                 <option value="high">High (More thorough)</option>
               </select>
+            </div>
+          </div>
+        )}
+
+        {/* Context Window Size (only for Ollama) */}
+        {selectedModels[agentName] && selectedModels[agentName].split('>')[0] === ProviderTypeEnum.Ollama && (
+          <div className="flex items-center">
+            <label
+              htmlFor={`${agentName}-numCtx`}
+              className={`w-24 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Context
+            </label>
+            <div className="flex flex-1 items-center space-x-2">
+              <input
+                id={`${agentName}-numCtx`}
+                type="number"
+                min="2048"
+                step="1"
+                value={modelParameters[agentName].numCtx ?? 64000}
+                onChange={e => {
+                  const value = Number.parseInt(e.target.value, 10);
+                  if (!Number.isNaN(value) && value > 0) {
+                    handleParameterChange(agentName, 'numCtx', value);
+                  }
+                }}
+                className={`flex-1 rounded-md border ${isDarkMode ? 'border-slate-600 bg-slate-700 text-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-800' : 'border-gray-300 bg-white text-gray-700 focus:border-blue-400 focus:ring-2 focus:ring-blue-200'} px-3 py-2 text-sm`}
+              />
             </div>
           </div>
         )}
