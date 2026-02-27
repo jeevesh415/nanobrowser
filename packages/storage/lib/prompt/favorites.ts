@@ -150,14 +150,24 @@ export function createFavoritesStorage(): FavoritePromptsStorage {
 
       // Check if storage is in initial state (empty prompts array and nextId=1)
       if (currentState.prompts.length === 0 && currentState.nextId === 1) {
-        // Initialize with default prompts
-        for (const prompt of defaultFavoritePrompts) {
-          await favoritesStorage.set(prev => {
-            const id = prev.nextId;
-            const newPrompt: FavoritePrompt = { id, title: prompt.title, content: prompt.content };
-            return { nextId: id + 1, prompts: [newPrompt, ...prev.prompts] };
-          });
-        }
+        // Initialize with default prompts in a single batch operation
+        await favoritesStorage.set(prev => {
+          let currentNextId = prev.nextId;
+          const newPrompts = [...prev.prompts];
+
+          for (const prompt of defaultFavoritePrompts) {
+            newPrompts.unshift({
+              id: currentNextId++,
+              title: prompt.title,
+              content: prompt.content,
+            });
+          }
+
+          return {
+            nextId: currentNextId,
+            prompts: newPrompts,
+          };
+        });
         const newState = await favoritesStorage.get();
         prompts = newState.prompts;
       }
