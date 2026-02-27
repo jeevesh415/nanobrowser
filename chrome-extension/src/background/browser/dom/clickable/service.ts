@@ -13,16 +13,17 @@ export async function getClickableElementsHashes(domElement: DOMElementNode): Pr
 /**
  * Get all clickable elements in the DOM tree
  */
-export function getClickableElements(domElement: DOMElementNode): DOMElementNode[] {
-  const clickableElements: DOMElementNode[] = [];
-
+export function getClickableElements(
+  domElement: DOMElementNode,
+  clickableElements: DOMElementNode[] = [],
+): DOMElementNode[] {
   for (const child of domElement.children) {
     if (child instanceof DOMElementNode) {
       if (child.highlightIndex !== null) {
         clickableElements.push(child);
       }
 
-      clickableElements.push(...getClickableElements(child));
+      getClickableElements(child, clickableElements);
     }
   }
 
