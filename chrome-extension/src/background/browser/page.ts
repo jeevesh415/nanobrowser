@@ -229,9 +229,16 @@ export default class Page {
         const updatedStateClickableElements = ClickableElementProcessor.getClickableElements(updatedState.elementTree);
 
         // Mark elements as new if they weren't in the previous state
-        for (const domElement of updatedStateClickableElements) {
-          const hash = await ClickableElementProcessor.hashDomElement(domElement);
-          domElement.isNew = !this._cachedStateClickableElementsHashes.hashes.has(hash);
+        // Batched parallel execution for optimal performance
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < updatedStateClickableElements.length; i += BATCH_SIZE) {
+          const batch = updatedStateClickableElements.slice(i, i + BATCH_SIZE);
+          await Promise.all(
+            batch.map(async domElement => {
+              const hash = await ClickableElementProcessor.hashDomElement(domElement);
+              domElement.isNew = !this._cachedStateClickableElementsHashes?.hashes.has(hash);
+            }),
+          );
         }
       }
 
