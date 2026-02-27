@@ -115,14 +115,17 @@ export const llmProviderParameters = {
     [AgentNameEnum.Planner]: {
       temperature: 0.3,
       topP: 0.9,
+      numCtx: 64000,
     },
     [AgentNameEnum.Navigator]: {
       temperature: 0.1,
       topP: 0.85,
+      numCtx: 64000,
     },
     [AgentNameEnum.Validator]: {
       temperature: 0.1,
       topP: 0.8,
+      numCtx: 64000,
     },
   },
   [ProviderTypeEnum.AzureOpenAI]: {
