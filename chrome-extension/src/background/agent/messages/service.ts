@@ -256,15 +256,33 @@ export default class MessageManager {
    */
   private _filterSensitiveData(message: BaseMessage): BaseMessage {
     const replaceSensitive = (value: string): string => {
-      let filteredValue = value;
-      if (!this.settings.sensitiveData) return filteredValue;
+      if (!this.settings.sensitiveData) return value;
 
-      for (const [key, val] of Object.entries(this.settings.sensitiveData)) {
-        // Skip empty values to match Python behavior
-        if (!val) continue;
-        filteredValue = filteredValue.replace(val, `<secret>${key}</secret>`);
+      const entries = Object.entries(this.settings.sensitiveData).filter(([, val]) => val);
+      if (entries.length === 0) return value;
+
+      // Sort by length descending to match longer strings first
+      entries.sort((a, b) => b[1].length - a[1].length);
+
+      const valueToKey = new Map<string, string>();
+      const patterns: string[] = [];
+
+      for (const [key, val] of entries) {
+        if (!valueToKey.has(val)) {
+          valueToKey.set(val, key);
+          patterns.push(val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        }
       }
-      return filteredValue;
+
+      if (patterns.length === 0) return value;
+
+      const pattern = patterns.join('|');
+      const regex = new RegExp(pattern, 'g');
+
+      return value.replace(regex, match => {
+        const key = valueToKey.get(match);
+        return `<secret>${key}</secret>`;
+      });
     };
 
     if (typeof message.content === 'string') {
