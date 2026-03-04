@@ -56,9 +56,7 @@ export default class BrowserContext {
     const currentPage = await this.getCurrentPage();
     currentPage?.removeHighlight();
     // detach all pages
-    for (const page of this._attachedPages.values()) {
-      await page.detachPuppeteer();
-    }
+    await Promise.all(Array.from(this._attachedPages.values()).map(page => page.detachPuppeteer()));
     this._attachedPages.clear();
     this._currentTabId = null;
   }
