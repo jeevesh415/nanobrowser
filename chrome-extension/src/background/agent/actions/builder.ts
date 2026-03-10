@@ -240,22 +240,18 @@ export class ActionBuilder {
         }
 
         try {
-          const initialTabIds = await this.context.browserContext.getAllTabIds();
-          await page.clickElementNode(this.context.options.useVision, elementNode);
+          const newTabId = await this.context.browserContext.detectNewTab(async () => {
+            await page.clickElementNode(this.context.options.useVision, elementNode);
+          });
+
           let msg = `Clicked button with index ${input.index}: ${elementNode.getAllTextTillNextClickableElement(2)}`;
           logger.info(msg);
 
-          // TODO: could be optimized by chrome extension tab api
-          const currentTabIds = await this.context.browserContext.getAllTabIds();
-          if (currentTabIds.size > initialTabIds.size) {
+          if (newTabId) {
             const newTabMsg = 'New tab opened - switching to it';
             msg += ` - ${newTabMsg}`;
             logger.info(newTabMsg);
-            // find the tab id that is not in the initial tab ids
-            const newTabId = Array.from(currentTabIds).find(id => !initialTabIds.has(id));
-            if (newTabId) {
-              await this.context.browserContext.switchTab(newTabId);
-            }
+            await this.context.browserContext.switchTab(newTabId);
           }
           this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_OK, msg);
           return new ActionResult({ extractedContent: msg, includeInMemory: true });
