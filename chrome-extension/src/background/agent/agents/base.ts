@@ -5,7 +5,12 @@ import type { BasePrompt } from '../prompts/base';
 import type { BaseMessage } from '@langchain/core/messages';
 import { createLogger } from '@src/background/log';
 import type { Action } from '../actions/builder';
-import { convertInputMessages, extractJsonFromModelOutput, removeThinkTags } from '../messages/utils';
+import {
+  convertInputMessages,
+  extractJsonFromModelOutput,
+  removeThinkTags,
+  getLangChainClassName,
+} from '../messages/utils';
 import { isAbortedError, RequestCancelledError } from './errors';
 
 const logger = createLogger('agent');
@@ -51,8 +56,7 @@ export abstract class BaseAgent<T extends z.ZodType, M = unknown> {
     this.chatLLM = options.chatLLM;
     this.prompt = options.prompt;
     this.context = options.context;
-    // TODO: fix this, the name is not correct in production environment
-    this.chatModelLibrary = this.chatLLM.constructor.name;
+    this.chatModelLibrary = getLangChainClassName(this.chatLLM);
     this.modelName = this.getModelName();
     this.withStructuredOutput = this.setWithStructuredOutput();
     // extra options

@@ -95,7 +95,7 @@ function convertMessagesForNonFunctionCallingModels(inputMessages: BaseMessage[]
         outputMessages.push(message);
       }
     } else {
-      throw new Error(`Unknown message type: ${message.constructor.name}`);
+      throw new Error(`Unknown message type: ${getLangChainClassName(message)}`);
     }
   }
 
@@ -198,4 +198,18 @@ ${UNTRUSTED_CONTENT_TAG_END}
 export function wrapUserRequest(rawContent: string, escapeFirst = true): string {
   const contentToWrap = escapeFirst ? escapeUntrustedContent(rawContent) : rawContent;
   return `${USER_REQUEST_TAG_START}\n${contentToWrap}\n${USER_REQUEST_TAG_END}`;
+}
+
+/**
+ * Robustly identify the LangChain class name, especially in minified production environments.
+ * @param obj - The LangChain object (e.g., BaseChatModel, BaseMessage)
+ * @returns The class name string
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getLangChainClassName(obj: any): string {
+  const lcId = obj.toJSON?.().id;
+  if (lcId) {
+    return Array.isArray(lcId) ? (lcId.at(-1) as string) : (lcId as string);
+  }
+  return obj.constructor.name;
 }
