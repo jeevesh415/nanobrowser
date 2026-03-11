@@ -19,8 +19,8 @@
     "@extension/shared": "workspace:*",
     "@extension/storage": "workspace:*",
     "@langchain/anthropic": "0.3.21",
-    "@langchain/core": "0.3.57",
     "@langchain/cerebras": "^0.0.1",
+    "@langchain/core": "0.3.57",
     "@langchain/deepseek": "^0.0.2",
     "@langchain/google-genai": "0.2.10",
     "@langchain/groq": "^0.2.2",
@@ -43,9 +43,12 @@
     "@extension/vite-config": "workspace:*",
     "@laynezh/vite-plugin-lib-assets": "^0.6.1",
     "@types/ws": "^8.5.13",
+    "@vitest/ui": "^4.0.18",
     "cross-env": "^7.0.3",
     "deepmerge": "^4.3.1",
     "magic-string": "^0.30.10",
-    "ts-loader": "^9.5.1"
+    "ts-loader": "^9.5.1",
+    "tsx": "^4.19.2",
+    "vitest": "^4.0.18"
   }
 }
