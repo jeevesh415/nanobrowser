@@ -24,6 +24,7 @@ import { createLogger } from '@src/background/log';
 import { ExecutionState, Actors } from '../event/types';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { wrapUntrustedContent } from '../messages/utils';
+import type { BrowserState } from '../../browser/views';
 
 const logger = createLogger('Action');
 
@@ -40,13 +41,13 @@ export class InvalidInputError extends Error {
 export class Action {
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private readonly handler: (input: any) => Promise<ActionResult>,
+    private readonly handler: (input: any, state?: BrowserState) => Promise<ActionResult>,
     public readonly schema: ActionSchema,
     // Whether this action has an index argument
     public readonly hasIndex: boolean = false,
   ) {}
 
-  async call(input: unknown): Promise<ActionResult> {
+  async call(input: unknown, state?: BrowserState): Promise<ActionResult> {
     // Validate input before calling the handler
     const schema = this.schema.schema;
 
@@ -56,7 +57,7 @@ export class Action {
       Object.keys((schema as z.ZodObject<Record<string, z.ZodTypeAny>>).shape || {}).length === 0;
 
     if (isEmptySchema) {
-      return await this.handler({});
+      return await this.handler({}, state);
     }
 
     const parsedArgs = this.schema.schema.safeParse(input);
@@ -64,7 +65,7 @@ export class Action {
       const errorMessage = parsedArgs.error.message;
       throw new InvalidInputError(errorMessage);
     }
-    return await this.handler(parsedArgs.data);
+    return await this.handler(parsedArgs.data, state);
   }
 
   name() {
@@ -217,14 +218,14 @@ export class ActionBuilder {
 
     // Element Interaction Actions
     const clickElement = new Action(
-      async (input: z.infer<typeof clickElementActionSchema.schema>) => {
+      async (input: z.infer<typeof clickElementActionSchema.schema>, state?: BrowserState) => {
         const intent = input.intent || `Click element with index ${input.index}`;
         this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_START, intent);
 
         const page = await this.context.browserContext.getCurrentPage();
-        const state = await page.getState();
+        const browserState = state || await page.getState();
 
-        const elementNode = state?.selectorMap.get(input.index);
+        const elementNode = browserState?.selectorMap.get(input.index);
         if (!elementNode) {
           throw new Error(`Element with index ${input.index} does not exist - retry or use alternative actions`);
         }
@@ -273,14 +274,14 @@ export class ActionBuilder {
     actions.push(clickElement);
 
     const inputText = new Action(
-      async (input: z.infer<typeof inputTextActionSchema.schema>) => {
+      async (input: z.infer<typeof inputTextActionSchema.schema>, state?: BrowserState) => {
         const intent = input.intent || `Input text into index ${input.index}`;
         this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_START, intent);
 
         const page = await this.context.browserContext.getCurrentPage();
-        const state = await page.getState();
+        const browserState = state || await page.getState();
 
-        const elementNode = state?.selectorMap.get(input.index);
+        const elementNode = browserState?.selectorMap.get(input.index);
         if (!elementNode) {
           throw new Error(`Element with index ${input.index} does not exist - retry or use alternative actions`);
         }
@@ -473,14 +474,14 @@ export class ActionBuilder {
 
     // Get all options from a native dropdown
     const getDropdownOptions = new Action(
-      async (input: z.infer<typeof getDropdownOptionsActionSchema.schema>) => {
+      async (input: z.infer<typeof getDropdownOptionsActionSchema.schema>, state?: BrowserState) => {
         const intent = input.intent || `Getting options from dropdown with index ${input.index}`;
         this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_START, intent);
 
         const page = await this.context.browserContext.getCurrentPage();
-        const state = await page.getState();
+        const browserState = state || await page.getState();
 
-        const elementNode = state?.selectorMap.get(input.index);
+        const elementNode = browserState?.selectorMap.get(input.index);
         if (!elementNode) {
           const errorMsg = `Element with index ${input.index} does not exist - retry or use alternative actions`;
           logger.error(errorMsg);
@@ -543,14 +544,14 @@ export class ActionBuilder {
 
     // Select dropdown option for interactive element index by the text of the option you want to select'
     const selectDropdownOption = new Action(
-      async (input: z.infer<typeof selectDropdownOptionActionSchema.schema>) => {
+      async (input: z.infer<typeof selectDropdownOptionActionSchema.schema>, state?: BrowserState) => {
         const intent = input.intent || `Select option "${input.text}" from dropdown with index ${input.index}`;
         this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_START, intent);
 
         const page = await this.context.browserContext.getCurrentPage();
-        const state = await page.getState();
+        const browserState = state || await page.getState();
 
-        const elementNode = state?.selectorMap.get(input.index);
+        const elementNode = browserState?.selectorMap.get(input.index);
         if (!elementNode) {
           const errorMsg = `Element with index ${input.index} does not exist - retry or use alternative actions`;
           this.context.emitEvent(Actors.NAVIGATOR, ExecutionState.ACT_FAIL, errorMsg);

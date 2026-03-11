@@ -357,6 +357,7 @@ export class NavigatorAgent extends BaseAgent<z.ZodType, NavigatorResult> {
     const browserContext = this.context.browserContext;
     const browserState = await browserContext.getState(this.context.options.useVision);
     const cachedPathHashes = await calcBranchPathHashSet(browserState);
+    let currentState = browserState;
 
     await browserContext.removeHighlight();
 
@@ -390,16 +391,17 @@ export class NavigatorAgent extends BaseAgent<z.ZodType, NavigatorResult> {
             );
             break;
           }
+          currentState = newState;
         }
 
-        const result = await actionInstance.call(actionArgs);
+        const result = await actionInstance.call(actionArgs, currentState);
         if (result === undefined) {
           throw new Error(`Action ${actionName} returned undefined`);
         }
 
         // if the action has an index argument, record the interacted element to the result
         if (indexArg !== null) {
-          const domElement = browserState.selectorMap.get(indexArg);
+          const domElement = currentState.selectorMap.get(indexArg);
           if (domElement) {
             const interactedElement = HistoryTreeProcessor.convertDomElementToHistoryElement(domElement);
             result.interactedElement = interactedElement;
