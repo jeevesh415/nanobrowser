@@ -100,35 +100,55 @@ export const ModelSettings = ({ isDarkMode = false }: ModelSettingsProps) => {
   useEffect(() => {
     const loadAgentModels = async () => {
       try {
+        const agents = Object.values(AgentNameEnum);
+        const configs = await Promise.all(agents.map(agent => agentModelStore.getAgentModel(agent)));
+
         const models: Record<AgentNameEnum, string> = {
           [AgentNameEnum.Planner]: '',
           [AgentNameEnum.Navigator]: '',
           [AgentNameEnum.Validator]: '',
         };
 
-        for (const agent of Object.values(AgentNameEnum)) {
-          const config = await agentModelStore.getAgentModel(agent);
+        const parametersUpdate: Partial<typeof modelParameters> = {};
+        const reasoningEffortUpdate: Partial<typeof reasoningEffort> = {};
+
+        configs.forEach((config, index) => {
+          const agent = agents[index];
           if (config) {
             // Store in provider>model format
             models[agent] = `${config.provider}>${config.modelName}`;
+
             if (config.parameters?.temperature !== undefined || config.parameters?.topP !== undefined) {
-              setModelParameters(prev => ({
-                ...prev,
-                [agent]: {
-                  temperature: (config.parameters?.temperature as number) ?? prev[agent].temperature,
-                  topP: (config.parameters?.topP as number) ?? prev[agent].topP,
-                  numCtx: config.parameters?.numCtx as number | undefined,
-                },
-              }));
+              parametersUpdate[agent] = {
+                temperature: config.parameters?.temperature as number | undefined,
+                topP: config.parameters?.topP as number | undefined,
+                numCtx: config.parameters?.numCtx as number | undefined,
+              };
             }
-            // Also load reasoningEffort if available
+
             if (config.reasoningEffort) {
-              setReasoningEffort(prev => ({
-                ...prev,
-                [agent]: config.reasoningEffort as 'low' | 'medium' | 'high',
-              }));
+              reasoningEffortUpdate[agent] = config.reasoningEffort as 'low' | 'medium' | 'high';
             }
           }
+        });
+
+        // Batch state updates
+        if (Object.keys(parametersUpdate).length > 0) {
+          setModelParameters(prev => {
+            const next = { ...prev };
+            for (const [agent, params] of Object.entries(parametersUpdate)) {
+              const agentKey = agent as AgentNameEnum;
+              next[agentKey] = {
+                temperature: params!.temperature ?? prev[agentKey].temperature,
+                topP: params!.topP ?? prev[agentKey].topP,
+                numCtx: params!.numCtx,
+              };
+            }
+            return next;
+          });
+        }
+        if (Object.keys(reasoningEffortUpdate).length > 0) {
+          setReasoningEffort(prev => ({ ...prev, ...reasoningEffortUpdate }));
         }
         setSelectedModels(models);
       } catch (error) {
